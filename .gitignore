@@ -1,2 +1,7 @@
 group_path.txt
 token.txt
+bin
+include
+lib
+pyvenv.cfg
+script.log
