@@ -108,7 +108,7 @@ async def retrieve_all_projects(full_path, projects_list, projects_set, access_t
         try:
             result = await get_projects(full_path, access_token, projects_cursor, groups_cursor)
         except Exception as e:
-            logger.error(f"Failed to fetch projects: {e}")
+            logger.error(f"Failed to fetch projects: {e}") # TODO: retry needed here?
             break
 
         group_data = result['data']['group']
