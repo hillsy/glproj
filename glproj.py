@@ -16,12 +16,6 @@ formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
-# Setup a separate logger for project list without timestamp
-project_logger = logging.getLogger('project_logger')
-project_file_handler = logging.FileHandler('projects.log')
-project_file_handler.setLevel(logging.INFO)
-project_logger.addHandler(project_file_handler)
-
 # Read the access token from a file
 def read_token(file_path):
     with open(file_path, 'r') as file:
