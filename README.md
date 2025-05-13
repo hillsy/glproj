@@ -6,8 +6,8 @@ outputs the project details (ID, name, description, and URL) in JSON format.
 
 ## Requirements
 
-* Python 3.12+ (developed on 3.12 - other versions may work)
-* The necessary Python packages listed in `requirements.txt`
+- Python 3.12+ (developed on 3.12 - other versions may work)
+- The necessary Python packages listed in `requirements.txt`
 
 ## Installation and Running
 
@@ -38,12 +38,12 @@ outputs the project details (ID, name, description, and URL) in JSON format.
    The script requires two files in the same directory to read your GitLab
    access token and the group path:
 
-   * `token.txt`: Create this file and paste your GitLab Personal Access Token
+   - `token.txt`: Create this file and paste your GitLab Personal Access Token
      inside. Ensure the token has the api scope.
 
      **Keep this file secure and do not commit it to version control.**
 
-   * `group_path.txt`: Create this file and paste the full path of the GitLab
+   - `group_path.txt`: Create this file and paste the full path of the GitLab
      group you want to list projects from (e.g. my-group/my-subgroup)
 
 7. Run the Script
@@ -60,10 +60,10 @@ outputs the project details (ID, name, description, and URL) in JSON format.
 
 ## Command-Line Arguments
 
-* `--loglevel {DEBUG, INFO, WARNING, ERROR, CRITICAL}`: Sets the logging level.
+- `--loglevel {DEBUG, INFO, WARNING, ERROR, CRITICAL}`: Sets the logging level.
   Defaults to `ERROR`.
 
-* `--logfile [FILENAME]`: Logs messages to a file. If FILENAME is not provided,
+- `--logfile [FILENAME]`: Logs messages to a file. If FILENAME is not provided,
   it defaults to `glproj.log`. If this argument is omitted, logs are sent to
   stderr.
 
@@ -76,34 +76,35 @@ outputs the project details (ID, name, description, and URL) in JSON format.
 The script outputs a JSON object to standard output with a single key projects
 which is a list of project objects. Each project object contains:
 
-* id: The integer ID of the project.
-* name: The name of the project.
-* description: The description of the project.
-* url: The web URL of the project.
+- id: The integer ID of the project.
+- name: The name of the project.
+- description: The description of the project.
+- url: The web URL of the project.
 
 ## Technical Details and Resilience
 
 The script is built using Python's asynchronous programming capabilities to
 efficiently handle communication with the GitLab API:
 
-* **asyncio**: The script leverages asyncio to perform concurrent operations.
+- **asyncio**: The script leverages asyncio to perform concurrent operations.
   This means it can initiate multiple API requests to fetch data from different
   subgroups or paginated results simultaneously, significantly speeding up the
   data retrieval process compared to sequential requests.
 
-* **aiohttp**: Asynchronous HTTP requests are handled by the aiohttp library.
+- **aiohttp**: Asynchronous HTTP requests are handled by the aiohttp library.
   This library is specifically designed for use with asyncio, providing a
   non-blocking way to make network calls without waiting for each response
   before moving to the next task.
 
-* **aiohttp-retry with ExponentialRetry**: To enhance resilience against
+- **aiohttp-retry with ExponentialRetry**: To enhance resilience against
   transient network issues and GitLab API rate limiting, the script uses
   aiohttp-retry with an ExponentialRetry strategy. This automatically retries
-  failed HTTP requests with increasing delays between attempts. This approach
-  helps to:
+  failed HTTP requests with increasing delays between attempts.
 
-    * Recover from temporary network glitches.
-    * Respect API rate limits by backing off gracefully when the server indicates
+  This approach helps to:
+
+  - Recover from temporary network glitches.
+  - Respect API rate limits by backing off gracefully when the server indicates
     it is being overwhelmed. The retry mechanism attempts up to 10 times with
     exponential backoff, improving the chances of successful completion even
     under challenging network conditions or heavy API load.
