@@ -1,14 +1,26 @@
 #!/usr/bin/env python
-import requests
-import os
-import logging
-import asyncio
 import aiohttp
-from aiohttp_retry import RetryClient, ExponentialRetry
+import argparse
+import asyncio
 import json
+import logging
+import os
+import requests
+from aiohttp_retry import RetryClient, ExponentialRetry
+
+parser = argparse.ArgumentParser()
 
 # Setup logging to file and stdout
-logging.basicConfig(level=logging.INFO, format='%(message)s')
+# ERROR is the default log level - override with --log-level command-line argument
+parser.add_argument(
+        "--log-level",
+        default="ERROR",
+        dest="loglevel",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Set the logging level (default: ERROR).",
+    )
+args = parser.parse_args()
+logging.basicConfig(level=args.loglevel, format='%(message)s')
 logger = logging.getLogger()
 file_handler = logging.FileHandler('script.log')
 file_handler.setLevel(logging.INFO)
