@@ -9,23 +9,51 @@ from aiohttp_retry import RetryClient, ExponentialRetry
 
 parser = argparse.ArgumentParser()
 
-# Setup logging to file and stdout
-# ERROR is the default log level - override with --log-level command-line argument
+# ERROR is the default log level - override with --loglevel argument
 parser.add_argument(
-        "--log-level",
+        "--loglevel",
         default="ERROR",
         dest="loglevel",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
         help="Set the logging level (default: ERROR).",
     )
+
+parser.add_argument(
+    "--logfile",
+    nargs='?', # Makes the argument optional, and allows it to be used without a value
+    const='glproj.log', # Default filename if --logfile is provided without a value
+    default=None, # If --logfile is not present, logs to stderr
+    help="Log messages to a file. If no filename is provided, defaults to 'glproj.log'. Otherwise, logs to stderr."
+)
+
 args = parser.parse_args()
-logging.basicConfig(level=args.loglevel, format='%(message)s')
+
 logger = logging.getLogger()
-file_handler = logging.FileHandler('script.log')
-file_handler.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
+logger.setLevel(args.loglevel.upper())
+
+# Remove any existing handlers to prevent duplicate logs or unintended behavior
+for handler in logger.handlers[:]:
+    logger.removeHandler(handler)
+
+# Define a common formatter
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
+
+if args.logfile:
+    try:
+        file_handler = logging.FileHandler(args.logfile, mode='a') # 'a' for append
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+    except IOError as e:
+        # Fallback to stderr if file cannot be opened, and print a warning to stderr
+        sys.stderr.write(f"Warning: Could not open logfile {args.logfile} for writing: {e}. Logging to stderr instead.\n")
+        stream_handler = logging.StreamHandler(sys.stderr)
+        stream_handler.setFormatter(formatter)
+        logger.addHandler(stream_handler)
+else:
+    # Log to stderr
+    stream_handler = logging.StreamHandler(sys.stderr)
+    stream_handler.setFormatter(formatter)
+    logger.addHandler(stream_handler)
 
 # Read the access token from a file
 def read_token(file_path):
@@ -144,6 +172,7 @@ async def retrieve_all_projects(full_path, projects_list, projects_set, access_t
             break
 
 async def main():
+    logger.info(f"Project listing started. Log level: {args.loglevel}. Log file: {args.logfile if args.logfile else 'stderr'}")
     full_path = read_group_path(GROUP_PATH_FILE)
     access_token = read_token(TOKEN_FILE)
     # TODO: rather than using both projects_list & projects_set, can we just
@@ -190,4 +219,8 @@ async def main():
         logger.error(f"An error occurred: {e}")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Script interrupted by user.")
+        sys.exit(130) # Standard exit code for Ctrl+C
