@@ -26,7 +26,8 @@ def read_group_path(file_path):
     with open(file_path, 'r') as file:
         return file.read().strip()
 
-# Replace with your GitLab instance URL
+# Default values for config variables
+# TODO: override these defaults with command-line arguments, if provided
 GITLAB_URL = 'https://gitlab.com/api/graphql'
 TOKEN_FILE = 'token.txt'
 GROUP_PATH_FILE = 'group_path.txt'
@@ -63,6 +64,7 @@ query($fullPath: ID!, $projectsCursor: String, $groupsCursor: String) {
 """
 
 async def fetch(session, url, headers, json):
+    # TODO: put a docstring for this function
     try:
         async with session.post(url, headers=headers, json=json, timeout=60) as response:
             response.raise_for_status()
@@ -75,6 +77,7 @@ async def fetch(session, url, headers, json):
         raise
 
 async def get_projects(full_path, access_token, projects_cursor=None, groups_cursor=None):
+    # TODO: put a docstring for this function
     headers = {
         'Authorization': f'Bearer {access_token}',
         'Content-Type': 'application/json'
@@ -86,6 +89,7 @@ async def get_projects(full_path, access_token, projects_cursor=None, groups_cur
         return result
 
 async def retrieve_all_projects(full_path, projects_list, projects_set, access_token):
+    # TODO: put a docstring for this function
     projects_cursor = None
     groups_cursor = None
     while True:
@@ -131,6 +135,9 @@ async def retrieve_all_projects(full_path, projects_list, projects_set, access_t
 async def main():
     full_path = read_group_path(GROUP_PATH_FILE)
     access_token = read_token(TOKEN_FILE)
+    # TODO: rather than using both projects_list & projects_set, can we just
+    # use projects_list? A project's GID string & webURL are unique, so if it's
+    # already in projects_list we just don't append it again
     projects_list = []
     projects_set = set()
 
