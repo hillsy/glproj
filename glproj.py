@@ -1,26 +1,59 @@
 #!/usr/bin/env python
-import requests
-import os
-import logging
-import asyncio
 import aiohttp
-from aiohttp_retry import RetryClient, ExponentialRetry
+import argparse
+import asyncio
 import json
+import logging
+import sys # gives us stderr
+from aiohttp_retry import RetryClient, ExponentialRetry
 
-# Setup logging to file and stdout
-logging.basicConfig(level=logging.INFO, format='%(message)s')
+parser = argparse.ArgumentParser()
+
+# ERROR is the default log level - override with --loglevel argument
+parser.add_argument(
+        "--loglevel",
+        default="ERROR",
+        dest="loglevel",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Set the logging level (default: ERROR).",
+    )
+
+parser.add_argument(
+    "--logfile",
+    nargs='?', # Makes the argument optional, and allows it to be used without a value
+    const='glproj.log', # Default filename if --logfile is provided without a value
+    default=None, # If --logfile is not present, logs to stderr
+    help="Log messages to a file. If no filename is provided, defaults to 'glproj.log'. Otherwise, logs to stderr."
+)
+
+args = parser.parse_args()
+
 logger = logging.getLogger()
-file_handler = logging.FileHandler('script.log')
-file_handler.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s - %(message)s')
-file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
+logger.setLevel(args.loglevel.upper())
 
-# Setup a separate logger for project list without timestamp
-project_logger = logging.getLogger('project_logger')
-project_file_handler = logging.FileHandler('projects.log')
-project_file_handler.setLevel(logging.INFO)
-project_logger.addHandler(project_file_handler)
+# Remove any existing handlers to prevent duplicate logs or unintended behavior
+for handler in logger.handlers[:]:
+    logger.removeHandler(handler)
+
+# Define a common formatter
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
+
+if args.logfile:
+    try:
+        file_handler = logging.FileHandler(args.logfile, mode='a') # 'a' for append
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+    except IOError as e:
+        # Fallback to stderr if file cannot be opened, and print a warning to stderr
+        sys.stderr.write(f"Warning: Could not open logfile {args.logfile} for writing: {e}. Logging to stderr instead.\n")
+        stream_handler = logging.StreamHandler(sys.stderr)
+        stream_handler.setFormatter(formatter)
+        logger.addHandler(stream_handler)
+else:
+    # Log to stderr
+    stream_handler = logging.StreamHandler(sys.stderr)
+    stream_handler.setFormatter(formatter)
+    logger.addHandler(stream_handler)
 
 # Read the access token from a file
 def read_token(file_path):
@@ -32,7 +65,8 @@ def read_group_path(file_path):
     with open(file_path, 'r') as file:
         return file.read().strip()
 
-# Replace with your GitLab instance URL
+# Default values for config variables
+# TODO: override these defaults with command-line arguments, if provided
 GITLAB_URL = 'https://gitlab.com/api/graphql'
 TOKEN_FILE = 'token.txt'
 GROUP_PATH_FILE = 'group_path.txt'
@@ -69,18 +103,20 @@ query($fullPath: ID!, $projectsCursor: String, $groupsCursor: String) {
 """
 
 async def fetch(session, url, headers, json):
+    # TODO: put a docstring for this function
     try:
         async with session.post(url, headers=headers, json=json, timeout=60) as response:
             response.raise_for_status()
             return await response.json()
     except aiohttp.ClientError as e:
-        logger.error(f"HTTP error occurred: {e}")
+        logger.warning(f"HTTP error occurred: {e}")
         raise
     except asyncio.TimeoutError as e:
-        logger.error(f"Connection timeout occurred: {e}")
+        logger.warning(f"Connection timeout occurred: {e}")
         raise
 
 async def get_projects(full_path, access_token, projects_cursor=None, groups_cursor=None):
+    # TODO: put a docstring for this function
     headers = {
         'Authorization': f'Bearer {access_token}',
         'Content-Type': 'application/json'
@@ -92,13 +128,14 @@ async def get_projects(full_path, access_token, projects_cursor=None, groups_cur
         return result
 
 async def retrieve_all_projects(full_path, projects_list, projects_set, access_token):
+    # TODO: put a docstring for this function
     projects_cursor = None
     groups_cursor = None
     while True:
         try:
             result = await get_projects(full_path, access_token, projects_cursor, groups_cursor)
         except Exception as e:
-            logger.error(f"Failed to fetch projects: {e}")
+            logger.error(f"Failed to fetch projects: {e}") # TODO: retry needed here?
             break
 
         group_data = result['data']['group']
@@ -135,8 +172,12 @@ async def retrieve_all_projects(full_path, projects_list, projects_set, access_t
             break
 
 async def main():
+    logger.info(f"Project listing started. Log level: {args.loglevel}. Log file: {args.logfile if args.logfile else 'stderr'}")
     full_path = read_group_path(GROUP_PATH_FILE)
     access_token = read_token(TOKEN_FILE)
+    # TODO: rather than using both projects_list & projects_set, can we just
+    # use projects_list? A project's GID string & webURL are unique, so if it's
+    # already in projects_list we just don't append it again
     projects_list = []
     projects_set = set()
 
@@ -178,4 +219,8 @@ async def main():
         logger.error(f"An error occurred: {e}")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Script interrupted by user.")
+        sys.exit(130) # Standard exit code for Ctrl+C
