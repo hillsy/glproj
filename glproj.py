@@ -4,8 +4,7 @@ import argparse
 import asyncio
 import json
 import logging
-import os
-import requests
+import sys # gives us stderr
 from aiohttp_retry import RetryClient, ExponentialRetry
 
 parser = argparse.ArgumentParser()
