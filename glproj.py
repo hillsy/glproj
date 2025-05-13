@@ -82,10 +82,10 @@ async def fetch(session, url, headers, json):
             response.raise_for_status()
             return await response.json()
     except aiohttp.ClientError as e:
-        logger.error(f"HTTP error occurred: {e}")
+        logger.warning(f"HTTP error occurred: {e}")
         raise
     except asyncio.TimeoutError as e:
-        logger.error(f"Connection timeout occurred: {e}")
+        logger.warning(f"Connection timeout occurred: {e}")
         raise
 
 async def get_projects(full_path, access_token, projects_cursor=None, groups_cursor=None):
