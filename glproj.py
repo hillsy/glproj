@@ -142,22 +142,37 @@ async def main():
 
     try:
         await retrieve_all_projects(full_path, projects_list, projects_set, access_token)
-
-        # Log all projects to both stdout and file in JSON format without duplicates and timestamps
-        logged_projects_set = set()
-
+        formatted_projects = []
         for project in projects_list:
-            project_info = {
-                "Project ID": project['id'],
-                "Project Name": project['name'],
-                "Project Description": project.get('description', ''),
-                "Project URL": project['webUrl']
-            }
+            project_int_id = None
+            try:
+                # Extract integer ID from gid string (e.g., "gid://gitlab/Project/12345" -> 12345)
+                if project.get('id'):
+                    project_int_id = int(project['id'].split('/')[-1])
+                else:
+                    logger.warning(f"Project '{project.get('name', 'Unknown')}' is missing an ID.")
+            except (ValueError, IndexError, TypeError) as e:
+                logger.error(f"Could not parse project ID from '{project.get('id')}': {e} for project {project.get('name')}")
 
-            if project_info["Project URL"] not in logged_projects_set:
-                logged_projects_set.add(project_info["Project URL"])
-                logger.info(json.dumps(project_info))
-                project_logger.info(json.dumps(project_info))
+            formatted_project = {
+                "id": project_int_id,
+                "name": project.get('name'),
+                "description": project.get('description'),
+                "url": project.get('webUrl')
+            }
+            formatted_projects.append(formatted_project)
+
+        # Create the final JSON structure
+        final_json_output = {"projects": formatted_projects}
+
+        # Print the final JSON to standard output
+        # This can be redirected to a file: python script.py > output.json
+        print(json.dumps(final_json_output, indent=2))
+
+        logger.info(f"Listed {len(formatted_projects)} projects")
+
+    except FileNotFoundError as e:
+        logger.error(f"Configuration file not found: {e}")
 
     except Exception as e:
         logger.error(f"An error occurred: {e}")
