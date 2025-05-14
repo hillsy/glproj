@@ -4,6 +4,7 @@ import json
 import sys
 import asyncio
 import aiohttp
+from aiohttp_retry import RetryClient, ExponentialRetry
 
 # Load JSON input from stdin
 json_input = sys.stdin.read()
@@ -16,21 +17,24 @@ with open('token.txt', 'r') as f:
 # Set GitLab API endpoint
 gitlab_api_endpoint = "https://gitlab.com/api/v4"
 
+# TODO: implement logging to stderr & with levels
 async def fetch_project_webhooks(session, project_id):
     url = f"{gitlab_api_endpoint}/projects/{project_id}/hooks"
     headers = {"Private-Token": gitlab_private_token}
-    async with session.get(url, headers=headers) as response:
-        if response.status == 200:
-            return await response.json()
-        else:
-            print(f"Failed to retrieve webhooks for project {project_id}: {response.status} {response.reason}")
-            print(f"Response headers: {response.headers}")
-            print(f"Response text: {await response.text()}")
-            return []
+    try:
+        async with session.get(url, headers=headers) as response:
+                response.raise_for_status()
+                return await response.json()
+    except (aiohttp.ClientError, aiohttp.ClientResponseError) as e:
+        print(f"HTTP error occurred: {e}")
+        raise
+    except asyncio.TimeoutError as e:
+        print(f"Connection timeout occurred: {e}")
+        raise
 
 async def process_project(session, project):
     project_id = project["id"]
-    project_url = project["web_url"]
+    project_url = project["url"]
     webhooks = await fetch_project_webhooks(session, project_id)
     hooks = []
     for webhook in webhooks:
@@ -40,7 +44,8 @@ async def process_project(session, project):
     return hooks
 
 async def main():
-    async with aiohttp.ClientSession() as session:
+    retry_options = ExponentialRetry(attempts=10)
+    async with RetryClient(raise_for_status=False, retry_options=retry_options) as session:
         tasks = [process_project(session, project) for project in data["projects"]]
         results = await asyncio.gather(*tasks)
         # flatten the list of lists into a single list
