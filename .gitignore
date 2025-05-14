@@ -4,5 +4,6 @@ bin
 group_path.txt
 include
 lib
+lib64
 pyvenv.cfg
 token.txt
