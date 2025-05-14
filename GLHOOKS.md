@@ -99,6 +99,15 @@ pip install aiohttp aiohttp_retry
    }
    ```
 
+5. **Working with the data**
+
+You can pipe data from the script into `jq` for further processsing. For
+example, to output URL, hook ID and project ID to a CSV file:
+
+```shell
+cat projects.json | ./glhooks.py | jq -r '.hooks[] | [.url, .id, .project_url] | @csv'
+```
+
 ## Notes
 
 - If a project's webhooks cannot be fetched after all retries, an error is logged to standard error, and the script continues with the next project.
