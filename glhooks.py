@@ -3,7 +3,7 @@
 import json
 import sys
 import asyncio
-import aiohttp
+import logging
 from aiohttp_retry import RetryClient, ExponentialRetry
 
 # Load JSON input from stdin
@@ -17,20 +17,20 @@ with open('token.txt', 'r') as f:
 # Set GitLab API endpoint
 gitlab_api_endpoint = "https://gitlab.com/api/v4"
 
-# TODO: implement logging to stderr & with levels
+# Set up basic logging to stderr
+# TODO: more like glproj.py - levels etc
+logging.basicConfig(stream=sys.stderr, level=logging.ERROR)
+
 async def fetch_project_webhooks(session, project_id):
     url = f"{gitlab_api_endpoint}/projects/{project_id}/hooks"
     headers = {"Private-Token": gitlab_private_token}
     try:
         async with session.get(url, headers=headers) as response:
-                response.raise_for_status()
-                return await response.json()
-    except (aiohttp.ClientError, aiohttp.ClientResponseError) as e:
-        print(f"HTTP error occurred: {e}")
-        raise
-    except asyncio.TimeoutError as e:
-        print(f"Connection timeout occurred: {e}")
-        raise
+            response.raise_for_status()
+            return await response.json()
+    except Exception as e:
+        logging.error(f"Failed to fetch webhooks for project {project_id}: {e}")
+        return []  # Return empty list if all retries fail
 
 async def process_project(session, project):
     project_id = project["id"]
@@ -44,14 +44,15 @@ async def process_project(session, project):
     return hooks
 
 async def main():
-    retry_options = ExponentialRetry(attempts=10)
+    retry_options = ExponentialRetry(
+        attempts=10,
+        # some codes aren't retriable by default; GitLab API returns a lot of 429s in particular
+        statuses={429, 500, 502, 503, 504}
+    )
     async with RetryClient(raise_for_status=False, retry_options=retry_options) as session:
         tasks = [process_project(session, project) for project in data["projects"]]
         results = await asyncio.gather(*tasks)
-        # flatten the list of lists into a single list
-        # this is necessary because asyncio.gather returns a list of lists
-        # and we want a single list of all the webhooks
         hooks = [hook for sublist in results for hook in sublist]
-        print(json.dumps({"hooks": hooks}))
+        print(json.dumps({"hooks": hooks}, indent=2))
 
 asyncio.run(main())
