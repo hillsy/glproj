@@ -52,7 +52,12 @@ async def main():
     async with RetryClient(raise_for_status=False, retry_options=retry_options) as session:
         tasks = [process_project(session, project) for project in data["projects"]]
         results = await asyncio.gather(*tasks)
-        hooks = [hook for sublist in results for hook in sublist]
+        # results is a list of lists, where each sublist is the hooks for
+        # one project. We use extend to flatten this list of lists into
+        # a single list of hooks.
+        hooks = []
+        for sublist in results:
+            hooks.extend(sublist)
         print(json.dumps({"hooks": hooks}, indent=2))
 
 asyncio.run(main())
