@@ -1,3 +1,4 @@
+*.json
 *.log
 bin
 group_path.txt
